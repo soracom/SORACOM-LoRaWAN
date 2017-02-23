@@ -1,0 +1,25 @@
+########################################
+# Syntax Coloring Map For LoRaWAN Client
+########################################
+
+########################################
+# Datatypes (KEYWORD1)
+########################################
+LoRaWANClient KEYWORD1
+
+########################################
+# Methods and Functions (KEYWORD2)
+########################################
+connect KEYWORD2
+sendCmd  KEYWORD2
+sendData  KEYWORD2
+
+########################################
+# Constants (LITERAL1)
+########################################
+LoRa_RX_PIN KEYWORD3
+LoRa_TX_PIN KEYWORD3
+INIT_WAIT_TIME  KEYWORD3
+SERIAL_WAIT_TIME  KEYWORD3
+NETWORK_WAIT_TIME KEYWORD3
+JOIN_RETRY_MAX  KEYWORD3
