@@ -8,6 +8,7 @@
 #define SERIAL_WAIT_TIME 1000
 #define NETWORK_WAIT_TIME 10000
 #define JOIN_RETRY_MAX 10
+#define MAX_PAYLOAD_SIZE 11
 
 typedef void (* CALLBACK)(char *, int);
 

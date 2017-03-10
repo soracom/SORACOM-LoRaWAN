@@ -5,8 +5,8 @@
 ########################################
 # Datatypes (KEYWORD1)
 ########################################
-LoRaWANClient KEYWORD1
 
+LoRaWANClient KEYWORD1
 ########################################
 # Methods and Functions (KEYWORD2)
 ########################################

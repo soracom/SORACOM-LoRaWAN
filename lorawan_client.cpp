@@ -13,28 +13,36 @@ bool LoRaWANClient::connect(){
   String cmd;
 
   ss.listen();
+
   sendCmd("\n", "",false);
   while (ss.available() > 0) {
     char ch = ss.read();
     Serial.print(ch);
   }
 
+  Serial.println("Checking if already joined or not ... ");
+  if (!sendCmd("lorawan get_join_status", "unjoined", true, waitTime)) {
+    Serial.println("already joined.");
+    return true;
+  }
+  Serial.println("unjoined.");
+
   //
   // LoRa module status clear
   //
-  if (!sendCmd("mod factory_reset", "Ok", false, waitTime)) {
+  if (!sendCmd("mod factory_reset", "Ok", true, waitTime)) {
     Serial.println("Request Failed");
     return false;
   }
-  if (!sendCmd("mod set_echo off", "Ok", false, waitTime)) {
+  if (!sendCmd("mod set_echo off", "Ok", true, waitTime)) {
     Serial.println("Request Failed");
     return false;
   }
-  if (!sendCmd("mod save", "Ok", false, waitTime)) {
+  if (!sendCmd("mod save", "Ok", true, waitTime)) {
     Serial.println("Request Failed");
     return false;
   }
-  if (!sendCmd("mod reset", "", false, waitTime)) {
+  if (!sendCmd("mod reset", "", true, waitTime)) {
     Serial.println("Request Failed");
     return false;
   }
@@ -133,14 +141,31 @@ bool LoRaWANClient::sendCmd(String cmd, String waitStr, bool echo=true, int wait
 }
 
 bool LoRaWANClient::sendData(char *data, short port=1, CALLBACK p=NULL, bool echo=true){
+  int i,j;
   char cmdLine[32];
+  char payload[MAX_PAYLOAD_SIZE*2+1]="";
+  char tmp[3]="";
 
   ECHO("sending '");
   ECHO(data);
   ECHO("' to port ");
-  ECHO(port);
-  sprintf(cmdLine, "lorawan tx ucnf %d %s", port, data);
-  if(sendCmd(cmdLine, "tx_ok", true, SERIAL_WAIT_TIME))
+  ECHOLN(port);
+
+  for(i=0, j=0; i< MAX_PAYLOAD_SIZE ; i++, j+=2)
+  {
+    if(data[i] == 0x00)
+    {
+      payload[j] = 0x00;
+      break;
+    }
+    sprintf(tmp,"%0x",data[i]);
+    strcat(payload, tmp);
+  }
+
+  sprintf(cmdLine, "lorawan tx ucnf %d %s", port, payload);
+  ECHOLN(cmdLine);
+
+  if(sendCmd(cmdLine, "tx_ok", true, NETWORK_WAIT_TIME))
   {
     ECHOLN(" ... sent.");
     return true;
