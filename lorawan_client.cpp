@@ -8,7 +8,7 @@ LoRaWANClient::LoRaWANClient() {
   ss.setTimeout(SERIAL_WAIT_TIME);
 }
 
-bool LoRaWANClient::connect(){
+bool LoRaWANClient::connect(bool force_reconnect=false){
   int waitTime=INIT_WAIT_TIME;
   String cmd;
 
@@ -20,12 +20,15 @@ bool LoRaWANClient::connect(){
     Serial.print(ch);
   }
 
-  Serial.println("Checking if already joined or not ... ");
-  if (!sendCmd("lorawan get_join_status", "unjoined", true, waitTime)) {
-    Serial.println("already joined.");
-    return true;
+  if(!force_reconnect)
+  {
+    Serial.println("Checking if already joined or not ... ");
+    if (!sendCmd("lorawan get_join_status", "unjoined", true, waitTime)) {
+      Serial.println("already joined.");
+      return true;
+    }
+    Serial.println("unjoined.");
   }
-  Serial.println("unjoined.");
 
   //
   // LoRa module status clear
@@ -63,22 +66,10 @@ bool LoRaWANClient::connect(){
     Serial.println("Request Failed");
     return false;
   }
-  if (!sendCmd("lorawan get_appkey", "", true, waitTime)) {
-    Serial.println("Request Failed");
-    return false;
-  }
 
   //
   // LoRa module initialize for Japan
   //
-  if (!sendCmd("lorawan set_ch_plan AS923 3 1 1 0", "Ok", true, waitTime)) {
-    Serial.println("Request Failed");
-    return false;
-  }
-  if (!sendCmd("lorawan set_appeui abcdef0123456789", "Ok", true, waitTime)) {
-    Serial.println("Request Failed");
-    return false;
-  }
   // Set DataRate 5 (SF7/BW125kHz) for receive CFList to join (payload size 242bytes)
   if (!sendCmd("lorawan set_dr 5", "Ok", true, waitTime)) {
     Serial.println("Request Failed");
@@ -93,7 +84,7 @@ bool LoRaWANClient::connect(){
   // LoRa module join to Network Server by OTAA
   //
   int retry=0;
-  while (!sendCmd("lorawan join otaa", "accepted", true, NETWORK_WAIT_TIME)) {
+  while (!sendCmd("lorawan join otaa", "accepted", true, JOIN_RETRY_INTERVAL)) {
     retry++;
     Serial.print("'lorawan join otaa' Failed (");
     Serial.print(retry);
@@ -164,6 +155,31 @@ bool LoRaWANClient::sendData(char *data, short port=1, CALLBACK p=NULL, bool ech
 
   sprintf(cmdLine, "lorawan tx ucnf %d %s", port, payload);
   ECHOLN(cmdLine);
+
+  if(sendCmd(cmdLine, "tx_ok", true, NETWORK_WAIT_TIME))
+  {
+    ECHOLN(" ... sent.");
+    return true;
+  }
+  else
+  {
+    ECHOLN(" ... failed.");
+    return false;
+  }
+}
+
+bool LoRaWANClient::sendData(unsigned long data, short port=1, CALLBACK p=NULL, bool echo=true){
+  int i,j;
+  char cmdLine[32];
+  char tmp[3]="";
+
+  ECHO("sending '");
+  ECHO(data);
+  ECHO("' to port ");
+  ECHOLN(port);
+
+  sprintf(cmdLine, "lorawan tx ucnf %d %08lx", port, data);
+//  ECHOLN(cmdLine);
 
   if(sendCmd(cmdLine, "tx_ok", true, NETWORK_WAIT_TIME))
   {
