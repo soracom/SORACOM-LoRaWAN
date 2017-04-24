@@ -197,6 +197,13 @@ bool LoRaWANClient::sendBinary(byte *data_pointer, int data_size, short port=1, 
   int i;
   byte *b;
   b=data_pointer;
+  if (data_size > MAX_PAYLOAD_SIZE)
+  {
+    ECHO("ERROR: size of data (");
+    ECHO(data_size);
+    ECHOLN(" bytes) too big. ");
+    return false;
+  }
 
   sprintf(cmdLine, "lorawan tx ucnf %d ", port);
   for(i=0;i<data_size;i++,b++)
