@@ -1,5 +1,4 @@
 #include "lorawan_client.h"
-#include "Arduino.h"
 #define ECHO(str) if(echo){Serial.print(str);}
 #define ECHOLN(str) if(echo){Serial.println(str);}
 
@@ -191,4 +190,31 @@ bool LoRaWANClient::sendData(unsigned long data, short port=1, CALLBACK p=NULL, 
     ECHOLN(" ... failed.");
     return false;
   }
+}
+
+bool LoRaWANClient::sendBinary(byte *data_pointer, int data_size, short port=1, CALLBACK p=NULL, bool echo=true){
+  char cmdLine[MAX_PAYLOAD_SIZE*2+30], tmp[]="00";
+  int i;
+  byte *b;
+  b=data_pointer;
+
+  sprintf(cmdLine, "lorawan tx ucnf %d ", port);
+  for(i=0;i<data_size;i++,b++)
+  {
+    sprintf(tmp, "%02x", *b );
+    strcat(cmdLine, tmp);
+  }
+  ECHOLN(cmdLine);
+  if(sendCmd(cmdLine, "tx_ok", true, NETWORK_WAIT_TIME))
+  {
+    ECHOLN(" ... sent.");
+    return true;
+  }
+  else
+  {
+    ECHOLN(" ... failed.");
+    return false;
+  }
+
+  return true;
 }
