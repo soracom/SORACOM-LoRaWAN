@@ -7,7 +7,7 @@ void setup() {
   Serial.begin(9600);
   Serial.println("Starting example sketch 'Uptime'.\n");
   Serial.println("Connecting ... \n");
-  if(! client.connect(true))
+  if(! client.connect())
   {
     Serial.println(" failed to connect. Halt...");
     for(;;){};

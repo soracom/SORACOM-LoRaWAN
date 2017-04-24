@@ -8,7 +8,7 @@ LoRaWANClient::LoRaWANClient() {
   ss.setTimeout(SERIAL_WAIT_TIME);
 }
 
-bool LoRaWANClient::connect(bool force_reconnect=false){
+bool LoRaWANClient::connect(bool force_reconnect=true){
   int waitTime=INIT_WAIT_TIME;
   String cmd;
 
