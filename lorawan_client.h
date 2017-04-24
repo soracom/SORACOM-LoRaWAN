@@ -19,7 +19,7 @@ private:
 
 public:
   LoRaWANClient();
-  bool connect(bool force_reconnect=false);
+  bool connect(bool force_reconnect=true);
   bool sendCmd(String cmd, String waitStr, bool echo=true, int waitTime=SERIAL_WAIT_TIME);
   bool sendData(char *msg, short port=1, CALLBACK p=NULL, bool echo=true);
   bool sendData(unsigned long, short port=1, CALLBACK p=NULL, bool echo=true);
