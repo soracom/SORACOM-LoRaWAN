@@ -66,20 +66,6 @@ bool LoRaWANClient::connect(bool force_reconnect=true){
     return false;
   }
 
-  //
-  // LoRa module initialize for Japan
-  //
-  // Set DataRate 5 (SF7/BW125kHz) for receive CFList to join (payload size 242bytes)
-  if (!sendCmd("lorawan set_dr 5", "Ok", true, waitTime)) {
-    Serial.println("Request Failed");
-    return false;
-  }
-
-  if (!sendCmd("lorawan save", "Ok", true, waitTime)) {
-    Serial.println("Request Failed");
-    return false;
-  }
-
   // LoRa module join to Network Server by OTAA
   //
   int retry=0;
@@ -96,12 +82,6 @@ bool LoRaWANClient::connect(bool force_reconnect=true){
       return false;
     }
   }
-  // Reset DataRate 2 (SF10/BW125kHz) before join (payload size 11bytes)
-  if (!sendCmd("lorawan set_dr 2", "Ok", true, waitTime)) {
-    Serial.println("Request Failed");
-    return false;
-  }
-
   return true;
 }
 
