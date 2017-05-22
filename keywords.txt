@@ -5,21 +5,24 @@
 ########################################
 # Datatypes (KEYWORD1)
 ########################################
+LoRaWANClient	KEYWORD1
 
-LoRaWANClient KEYWORD1
 ########################################
 # Methods and Functions (KEYWORD2)
 ########################################
-connect KEYWORD2
-sendCmd  KEYWORD2
-sendData  KEYWORD2
+connect	KEYWORD2
+sendCmd	KEYWORD2
+sendBinary	KEYWORD2
+sendData	KEYWORD2
 
 ########################################
 # Constants (LITERAL1)
 ########################################
-LoRa_RX_PIN KEYWORD3
-LoRa_TX_PIN KEYWORD3
-INIT_WAIT_TIME  KEYWORD3
-SERIAL_WAIT_TIME  KEYWORD3
-NETWORK_WAIT_TIME KEYWORD3
-JOIN_RETRY_MAX  KEYWORD3
+LoRa_RX_PIN	LITERAL1
+LoRa_TX_PIN	LITERAL1
+INIT_WAIT_TIME	LITERAL1
+SERIAL_WAIT_TIME	LITERAL1
+NETWORK_WAIT_TIME	LITERAL1
+JOIN_RETRY_INTERVAL	LITERAL1
+JOIN_RETRY_MAX	LITERAL1
+MAX_PAYLOAD_SIZE	LITERAL1
