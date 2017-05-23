@@ -115,17 +115,14 @@ bool LoRaWANClientAL050::connect(bool force_reconnect){
 }
 
 bool LoRaWANClientAL050::sendData(char *data, short port, CALLBACK p, bool echo){
-  int i,j;
-  char cmdLine[32];
-  char payload[MAX_PAYLOAD_SIZE*2+1]="";
-  char tmp[3]="";
-
   ECHO("sending '");
   ECHO(data);
   ECHO("' to port ");
   ECHOLN(port);
 
-  for(i=0, j=0; i< MAX_PAYLOAD_SIZE ; i++, j+=2)
+  char payload[MAX_PAYLOAD_SIZE*2+1] = "";
+  char tmp[3] = "";
+  for(int i=0, j=0; i< MAX_PAYLOAD_SIZE ; i++, j+=2)
   {
     if(data[i] == 0x00)
     {
@@ -136,51 +133,27 @@ bool LoRaWANClientAL050::sendData(char *data, short port, CALLBACK p, bool echo)
     strcat(payload, tmp);
   }
 
+  char cmdLine[32];
   sprintf(cmdLine, "lorawan tx %s %d %s", getTxTypeString(), port, payload);
   ECHOLN(cmdLine);
 
-  if(sendCmd(cmdLine, "tx_ok", true, NETWORK_WAIT_TIME))
-  {
-    ECHOLN(" ... sent.");
-    return true;
-  }
-  else
-  {
-    ECHOLN(" ... failed.");
-    return false;
-  }
+  return handleTx(cmdLine, p, echo);
 }
 
 bool LoRaWANClientAL050::sendData(unsigned long data, short port, CALLBACK p, bool echo){
-  int i,j;
-  char cmdLine[32];
-  char tmp[3]="";
-
   ECHO("sending '");
   ECHO(data);
   ECHO("' to port ");
   ECHOLN(port);
 
-  sprintf(cmdLine, "lorawan tx %s %d %08lx", getTxTypeString(), port, data);
-//  ECHOLN(cmdLine);
-
-  if(sendCmd(cmdLine, "tx_ok", true, NETWORK_WAIT_TIME))
-  {
-    ECHOLN(" ... sent.");
-    return true;
-  }
-  else
-  {
-    ECHOLN(" ... failed.");
-    return false;
-  }
+  char cmdLine[32];
+  sprintf(cmdLine, "lorawan tx %s %d %08lx", getTxTypeString(), port, data);  
+  ECHOLN(cmdLine);
+  
+  return handleTx(cmdLine, p, echo);
 }
 
 bool LoRaWANClientAL050::sendBinary(byte *data_pointer, int data_size, short port, CALLBACK p, bool echo){
-  char cmdLine[MAX_PAYLOAD_SIZE*2+30], tmp[]="00";
-  int i;
-  byte *b;
-  b=data_pointer;
   if (data_size > MAX_PAYLOAD_SIZE)
   {
     ECHO("ERROR: size of data (");
@@ -189,26 +162,55 @@ bool LoRaWANClientAL050::sendBinary(byte *data_pointer, int data_size, short por
     return false;
   }
 
+  char cmdLine[MAX_PAYLOAD_SIZE*2+30];
   sprintf(cmdLine, "lorawan tx %s %d ", getTxTypeString(), port);
-  for(i=0;i<data_size;i++,b++)
+
+  byte *b=data_pointer;
+  char tmp[]="00";
+  for(int i=0; i<data_size; i++,b++)
   {
     sprintf(tmp, "%02x", *b );
     strcat(cmdLine, tmp);
   }
   
   ECHOLN(cmdLine);
-  if(sendCmd(cmdLine, "tx_ok", true, NETWORK_WAIT_TIME))
+  
+  return handleTx(cmdLine, p, echo);
+}
+
+bool LoRaWANClientAL050::handleTx(char* cmdLine, CALLBACK p=NULL, bool echo){
+  const String response = sendCmd(cmdLine, true, NETWORK_WAIT_TIME);
+  const int posRx = response.indexOf("rx ");
+  if (posRx >= 0)
+  {
+    ECHOLN(" ... received downlink data.");
+    if (p != NULL) {
+      // parse "rx portnum data\n\r>> tx_sent"
+      const int posPrompt = response.indexOf("\n\r", posRx + 3);
+      const String rx = response.substring(posRx + 3, posPrompt);
+
+      int portnum;
+      const int posDelim = rx.indexOf(" ");
+      sscanf(rx.substring(0, posDelim).c_str(), "%d", &portnum);
+      
+      // You need to have a variable instance here.
+      const String dataString = rx.substring(posDelim + 1, rx.length());
+      const char* data = dataString.c_str();
+      p(data, portnum);
+    }
+    // fall through. rx response also includes tx_ok
+  }
+  
+  if (response.indexOf("tx_ok") >= 0)
   {
     ECHOLN(" ... sent.");
-    return true;
+    return true;    
   }
   else
   {
     ECHOLN(" ... failed.");
-    return false;
-  }
-
-  return true;
+    return false;    
+  } 
 }
 
 DataRate LoRaWANClientAL050::getDataRate(){

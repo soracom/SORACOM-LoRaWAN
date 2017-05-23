@@ -69,6 +69,7 @@ public:
 private:
   TxType txType = TX_TYPE_UNCONFIRMED;
   const char* getTxTypeString();
+  bool handleTx(char* cmdLine, CALLBACK p=NULL, bool echo=true);
 };
 
 #endif
