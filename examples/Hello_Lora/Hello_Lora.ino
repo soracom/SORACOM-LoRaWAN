@@ -1,11 +1,16 @@
-#include <lorawan_client.h>
+/*
+ * Sample code to connect and say hello
+ */
 
-LoRaWANClient client;
+#include <lorawan_client.h>
+#include <lorawan_client_al050.h>
+
+LoRaWANClientAL050 client;
 
 void setup() {
   Serial.begin(9600);
   Serial.print("Connecting ... ");
-  if(! client.connect())
+  if(!client.connect())
   {
     Serial.println(" failed to connect. Halt...");
     for(;;){};
@@ -13,7 +18,7 @@ void setup() {
 }
 
 void loop() {
-  char *data="Hello! LoRa";
+  char data[] = "Hello! LoRa";
 
   Serial.print("Sending ... ");
   Serial.println(data);

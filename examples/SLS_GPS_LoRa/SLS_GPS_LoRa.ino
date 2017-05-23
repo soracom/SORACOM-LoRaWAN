@@ -1,10 +1,12 @@
-/**
+/*
  * SLS_GPS_LoRa
  * (c) 2017 SORACOM, INC.
  */
+
 #include <SoftwareSerial.h>
 #include <TinyGPS.h>
 #include <lorawan_client.h>
+#include <lorawan_client_al050.h>
 
 // If you are using other pins, update accordingly
 #define GPS_TX_PIN  8 // Arduino 8pin to GPS module TX
@@ -33,7 +35,7 @@ SoftwareSerial gpsSerial(GPS_TX_PIN, GPS_RX_PIN);
 TinyGPS tinyGps;
 
 #ifdef USE_LORAWAN
-LoRaWANClient lorawanClient;
+LoRaWANClientAL050 lorawanClient;
 #endif
 
 unsigned long updated_time = 0L;

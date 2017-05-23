@@ -18,6 +18,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <lorawan_client.h>
+#include <lorawan_client_al050.h>
 
 #define POWER_PIN     9   // Power supply for sensor
 #define SENSOR_PIN   10   // For sensor data
@@ -30,7 +31,7 @@ OneWire oneWire(SENSOR_PIN);
 DallasTemperature sensors(&oneWire);
 
 // LoRaWAN Client
-LoRaWANClient client;
+LoRaWANClientAL050 client;
 
 void setup(void) {
   Serial.begin(9600);

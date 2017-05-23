@@ -1,91 +1,38 @@
+#include "Arduino.h"
+#include <SoftwareSerial.h>
+
 #include "lorawan_client.h"
+#include "lorawan_client_al050.h"
+
 #define ECHO(str) if(echo){Serial.print(str);}
 #define ECHOLN(str) if(echo){Serial.println(str);}
 
-LoRaWANClient::LoRaWANClient() {
+LoRaWANClient* LoRaWANClient::create(Device device) {
+  switch (device) {
+    case DEVICE_AL050:
+      return new LoRaWANClientAL050();
+      break;
+    default:
+      return NULL;
+      break;
+  }
+}
+
+LoRaWANClient::LoRaWANClient(SoftwareSerial softwareSerial) : ss(softwareSerial) {
   ss.begin(9600);
   ss.setTimeout(SERIAL_WAIT_TIME);
 }
 
-bool LoRaWANClient::connect(bool force_reconnect){
-  int waitTime=INIT_WAIT_TIME;
-  String cmd;
+bool LoRaWANClient::sendCmd(String cmd, String waitStr, bool echo, int waitTime){
+  const String str = sendCmd(cmd, echo, waitTime);
+  
+  if (waitStr == NULL) return true;
+  if (str.indexOf(waitStr) >= 0) return true;
 
-  ss.listen();
-
-  sendCmd("\n", "",false);
-  while (ss.available() > 0) {
-    char ch = ss.read();
-    Serial.print(ch);
-  }
-
-  if(!force_reconnect)
-  {
-    Serial.println("Checking if already joined or not ... ");
-    if (!sendCmd("lorawan get_join_status", "unjoined", true, waitTime)) {
-      Serial.println("already joined.");
-      return true;
-    }
-    Serial.println("unjoined.");
-  }
-
-  //
-  // LoRa module status clear
-  //
-  if (!sendCmd("mod factory_reset", "Ok", true, waitTime)) {
-    Serial.println("Request Failed");
-    return false;
-  }
-  if (!sendCmd("mod set_echo off", "Ok", true, waitTime)) {
-    Serial.println("Request Failed");
-    return false;
-  }
-  if (!sendCmd("mod save", "Ok", true, waitTime)) {
-    Serial.println("Request Failed");
-    return false;
-  }
-  if (!sendCmd("mod reset", "", true, waitTime)) {
-    Serial.println("Request Failed");
-    return false;
-  }
-
-  //
-  // LoRa module various value get
-  //
-
-  if (!sendCmd("mod get_hw_model", "", true, waitTime)) {
-    Serial.println("Request Failed");
-    return false;
-  }
-  if (!sendCmd("mod get_ver", "", true, waitTime)) {
-    Serial.println("Request Failed");
-    return false;
-  }
-  if (!sendCmd("lorawan get_deveui", "", true, waitTime)) {
-    Serial.println("Request Failed");
-    return false;
-  }
-
-  // LoRa module join to Network Server by OTAA
-  //
-  int retry=0;
-  while (!sendCmd("lorawan join otaa", "accepted", true, JOIN_RETRY_INTERVAL)) {
-    retry++;
-    Serial.print("'lorawan join otaa' Failed (");
-    Serial.print(retry);
-    Serial.print("/");
-    Serial.print(JOIN_RETRY_MAX);
-    Serial.println(")");
-    if(retry == JOIN_RETRY_MAX)
-    {
-      Serial.println("Exceeded JOIN_RETRY_MAX attempts.");
-      return false;
-    }
-  }
-  return true;
+  return false;
 }
 
-bool LoRaWANClient::sendCmd(String cmd, String waitStr, bool echo, int waitTime){
+String LoRaWANClient::sendCmd(String cmd, bool echo, int waitTime){
   unsigned long tim;
   String str;
 
@@ -101,107 +48,14 @@ bool LoRaWANClient::sendCmd(String cmd, String waitStr, bool echo, int waitTime)
       char ch = ss.read();
       ECHO(ch);
       str += String(ch);
-      if (str.indexOf("\n> ") >= 0) break;
+      if (str.indexOf(promptStr) >= 0) break;
     }
   }
-  if (waitStr == NULL) return true;
-  if (str.indexOf(waitStr) >= 0) return true;
 
-  return false;
+  return str;
 }
 
-bool LoRaWANClient::sendData(char *data, short port, CALLBACK p, bool echo){
-  int i,j;
-  char cmdLine[32];
-  char payload[MAX_PAYLOAD_SIZE*2+1]="";
-  char tmp[3]="";
-
-  ECHO("sending '");
-  ECHO(data);
-  ECHO("' to port ");
-  ECHOLN(port);
-
-  for(i=0, j=0; i< MAX_PAYLOAD_SIZE ; i++, j+=2)
-  {
-    if(data[i] == 0x00)
-    {
-      payload[j] = 0x00;
-      break;
-    }
-    sprintf(tmp,"%0x",data[i]);
-    strcat(payload, tmp);
-  }
-
-  sprintf(cmdLine, "lorawan tx ucnf %d %s", port, payload);
-  ECHOLN(cmdLine);
-
-  if(sendCmd(cmdLine, "tx_ok", true, NETWORK_WAIT_TIME))
-  {
-    ECHOLN(" ... sent.");
-    return true;
-  }
-  else
-  {
-    ECHOLN(" ... failed.");
-    return false;
-  }
+void LoRaWANClient::setPromptStr(const String& prompt){
+  promptStr = prompt;
 }
 
-bool LoRaWANClient::sendData(unsigned long data, short port, CALLBACK p, bool echo){
-  int i,j;
-  char cmdLine[32];
-  char tmp[3]="";
-
-  ECHO("sending '");
-  ECHO(data);
-  ECHO("' to port ");
-  ECHOLN(port);
-
-  sprintf(cmdLine, "lorawan tx ucnf %d %08lx", port, data);
-//  ECHOLN(cmdLine);
-
-  if(sendCmd(cmdLine, "tx_ok", true, NETWORK_WAIT_TIME))
-  {
-    ECHOLN(" ... sent.");
-    return true;
-  }
-  else
-  {
-    ECHOLN(" ... failed.");
-    return false;
-  }
-}
-
-bool LoRaWANClient::sendBinary(byte *data_pointer, int data_size, short port, CALLBACK p, bool echo){
-  char cmdLine[MAX_PAYLOAD_SIZE*2+30], tmp[]="00";
-  int i;
-  byte *b;
-  b=data_pointer;
-  if (data_size > MAX_PAYLOAD_SIZE)
-  {
-    ECHO("ERROR: size of data (");
-    ECHO(data_size);
-    ECHOLN(" bytes) too big. ");
-    return false;
-  }
-
-  sprintf(cmdLine, "lorawan tx ucnf %d ", port);
-  for(i=0;i<data_size;i++,b++)
-  {
-    sprintf(tmp, "%02x", *b );
-    strcat(cmdLine, tmp);
-  }
-  ECHOLN(cmdLine);
-  if(sendCmd(cmdLine, "tx_ok", true, NETWORK_WAIT_TIME))
-  {
-    ECHOLN(" ... sent.");
-    return true;
-  }
-  else
-  {
-    ECHOLN(" ... failed.");
-    return false;
-  }
-
-  return true;
-}
