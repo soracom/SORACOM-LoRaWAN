@@ -24,7 +24,7 @@ void setup() {
 /**
  * callback of downlink data
  */
-CALLBACK fn(char *data, int portnum) {
+void fn(char *data, int portnum) {
   Serial.println("got callback");
   Serial.print("data=");
   Serial.println(data);
@@ -35,7 +35,7 @@ CALLBACK fn(char *data, int portnum) {
 void loop() {
   char data[] = "cnf data";
 
-  pLorawanClient->sendData(data, 1, fn);
+  pLorawanClient->sendData(data, 1, &fn);
 
   delay(10000);
 }

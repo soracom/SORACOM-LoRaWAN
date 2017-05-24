@@ -178,7 +178,7 @@ bool LoRaWANClientAL050::sendBinary(byte *data_pointer, int data_size, short por
   return handleTx(cmdLine, p, echo);
 }
 
-bool LoRaWANClientAL050::handleTx(char* cmdLine, CALLBACK p=NULL, bool echo){
+bool LoRaWANClientAL050::handleTx(char* cmdLine, CALLBACK p, bool echo){
   const String response = sendCmd(cmdLine, true, NETWORK_WAIT_TIME);
   const int posRx = response.indexOf("rx ");
   if (posRx >= 0)
@@ -195,7 +195,7 @@ bool LoRaWANClientAL050::handleTx(char* cmdLine, CALLBACK p=NULL, bool echo){
       
       // You need to have a variable instance here.
       const String dataString = rx.substring(posDelim + 1, rx.length());
-      const char* data = dataString.c_str();
+      char* data = const_cast<char*>(dataString.c_str());
       p(data, portnum);
     }
     // fall through. rx response also includes tx_ok
