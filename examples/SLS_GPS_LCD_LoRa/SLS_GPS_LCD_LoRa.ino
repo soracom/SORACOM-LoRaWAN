@@ -450,7 +450,6 @@ void show_gps_history(int index) {
 #ifdef USE_KEY
 /** 
  * @return KEY
- * You should not call me directly. Use get_key() instead. 
  */ 
 KEY get_key(KEY last_key) {
   const int adc_key_in = analogRead(KEY_ANALOG_PIN);
@@ -458,7 +457,7 @@ KEY get_key(KEY last_key) {
 
   // check debounce
   if (millis() - key_last_get_time > KEY_DEBOUNCE_DELAY_MSEC) {
-    KEY key = get_current_key(adc_key_in);
+    const KEY key = get_current_key(adc_key_in);
     key_last_get_time = millis();
     // Serial.println(key);
     return key;
