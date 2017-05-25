@@ -90,6 +90,19 @@ void handleKey(KEY key) {
 }
 #endif
 
+void setDataToSend(char *txData, Statistics stat) {
+  if (stat.getTotalCount() == 0) {
+                 // 1 234567 89ab
+    strcpy(txData, "{\"init\":1}");
+  } else if (stat.getLastOk()) {
+    // o stands for tx_ok
+    // %d need to be less than 99999
+    snprintf(txData, MAX_PAYLOAD_SIZE + 1, "{\"o\":%d}", stat.getSequenceCount() + 1);
+  } else {
+    // e stands for err
+    snprintf(txData, MAX_PAYLOAD_SIZE + 1, "{\"e\":%d}", stat.getSequenceCount());
+  }
+}
 
 void loop() {
 #ifdef USE_KEY
@@ -101,11 +114,21 @@ void loop() {
 
   // lorawan requires interval time between communications
   if (current_time > last_sent_time + LORAWAN_SEND_INTERVAL_MSEC) {
-    char data[] = "sample data";
-    const bool isOk = lorawanClient.sendData(data);
-    last_sent_time = millis();    
+    char txData[MAX_PAYLOAD_SIZE + 1];
+    setDataToSend(txData, stat);
+    
+    const bool isOk = lorawanClient.sendData(txData);
     stat.addResult(isOk);
+    
+    last_sent_time = millis();    
     viewManager.updateView();
+
+    // reset to send stat whole data to harvest
+    // @see setDataToSend
+    if (stat.getTotalCount() > 99999) {
+      Serial.println("Resetting stat.");
+      stat.reset();
+    }
   }
 
   // toggle logo

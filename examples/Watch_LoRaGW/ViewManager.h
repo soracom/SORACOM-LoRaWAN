@@ -8,6 +8,7 @@ enum ViewMode {
   VIEW_MODE_COMBO, 
   VIEW_MODE_COUNT,
   VIEW_MODE_RATE, 
+  VIEW_MODE_MAX_ERR,
   
   // sentry (bampei) 
   VIEW_MODE_END,
@@ -35,11 +36,14 @@ public:
       case VIEW_MODE_COMBO:
         updateComboView();
         break;
+      case VIEW_MODE_COUNT:
+        updateCountView();
+        break;
       case VIEW_MODE_RATE:
         updateRateView();
         break;
-      case VIEW_MODE_COUNT:
-        updateCountView();
+      case VIEW_MODE_MAX_ERR:
+        updateMaxErrView();
         break;
       default:
         Serial.print("Unexpected viewMode=");
@@ -65,16 +69,6 @@ public:
     }
   }
   
-  void updateRateView() {
-    //     01234567890abcde
-    lcd.setCursor(4, 0);
-    lcd.print("ok rate     ");
-    lcd.setCursor(4, 1);
-    lcd.print("=           ");  
-    lcd.setCursor(5, 1);
-    lcd.print(stat.getOkRate());  
-  }
-  
   void updateCountView() {
     //     01234567890abcde
     lcd.setCursor(4, 0);
@@ -86,6 +80,26 @@ public:
     lcd.print("err=        ");
     lcd.setCursor(8, 1);
     lcd.print(stat.getErrCount());
+  }
+  
+  void updateRateView() {
+    //     01234567890abcde
+    lcd.setCursor(4, 0);
+    lcd.print("ok rate     ");
+    lcd.setCursor(4, 1);
+    lcd.print("=           ");  
+    lcd.setCursor(5, 1);
+    lcd.print(stat.getOkRate());  
+  }
+
+  void updateMaxErrView() {
+    //     01234567890abcde
+    lcd.setCursor(4, 0);
+    lcd.print("max err(min)");
+    lcd.setCursor(4, 1);
+    lcd.print("=           ");  
+    lcd.setCursor(5, 1);
+    lcd.print(stat.getMaxErrMins());
   }
   
   ViewMode rotateViewMode() {

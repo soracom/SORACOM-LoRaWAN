@@ -125,11 +125,10 @@ bool SoracomLogoDrawer::getBlink() {
 }
 
 bool SoracomLogoDrawer::blinkLogo() {
-  blinkLogo(lastX, lastY);
+  return blinkLogo(lastX, lastY);
 }
 
-bool SoracomLogoDrawer::blinkLogo(int x, int y) {
-  
+bool SoracomLogoDrawer::blinkLogo(int x, int y) {  
   lcd.setCursor(x + 1, y + 1);
   if (!blink) {
     lcd.write(CHAR_BOTTOM_MIDDLE_BLINK);
