@@ -5,10 +5,13 @@
  * - combo (sequence) mode
  * - ok rate mode
  * - count mode
+ * 
+ * Note that data are sent in JSON and you can see the history using SORACOM harvest.
  */
 #include <LiquidCrystal.h>
 #include <lorawan_client.h>
 #include <lorawan_client_al050.h>
+#include <lorawan_util.h>
 
 #include "SoracomLogoDrawer.h"
 #include "Statistics.h"
@@ -39,6 +42,10 @@ SoracomLogoDrawer logoDrawer(lcd);
 #define LORAWAN_SEND_INTERVAL_MSEC 4500
 #define LOGO_BLINK_INTERVAL_MSEC 750
 
+const String JSON_KEY_INIT("init");
+const String JSON_KEY_OK("o");
+const String JSON_KEY_ERR("e");
+
 Statistics stat;
 
 #ifdef USE_KEY
@@ -48,9 +55,9 @@ KeyManager keyManager;
 ViewManager viewManager(stat, lcd);
 
 // last sent to lora gateway
-int last_sent_time;
+unsigned long last_sent_time;
 // last blinked soracom logo
-int last_blinked_time;
+unsigned long last_blinked_time;
 
 
 void setup() {
@@ -90,18 +97,19 @@ void handleKey(KEY key) {
 }
 #endif
 
-void setDataToSend(char *txData, Statistics stat) {
+String createPayload(const Statistics& stat) {
+  // since INT_MAX is 32767, payload should always fits within 11 bytes
+  String data;
   if (stat.getTotalCount() == 0) {
-                 // 1 234567 89ab
-    strcpy(txData, "{\"init\":1}");
+    data = createJson(JSON_KEY_INIT, 1);
   } else if (stat.getLastOk()) {
     // o stands for tx_ok
-    // %d need to be less than 99999
-    snprintf(txData, MAX_PAYLOAD_SIZE + 1, "{\"o\":%d}", stat.getSequenceCount() + 1);
+    data = createJson(JSON_KEY_OK, stat.getSequenceCount() + 1);
   } else {
     // e stands for err
-    snprintf(txData, MAX_PAYLOAD_SIZE + 1, "{\"e\":%d}", stat.getSequenceCount());
+    data = createJson(JSON_KEY_ERR, stat.getSequenceCount());
   }
+  return data;
 }
 
 void loop() {
@@ -110,12 +118,12 @@ void loop() {
   keyManager.checkKey();
 #endif
 
-  const int current_time = millis();
+  const unsigned long current_time = millis();
 
   // lorawan requires interval time between communications
   if (current_time > last_sent_time + LORAWAN_SEND_INTERVAL_MSEC) {
-    char txData[MAX_PAYLOAD_SIZE + 1];
-    setDataToSend(txData, stat);
+    const String txData = createPayload(stat);
+    verifyPayloadLength(txData);
     
     const bool isOk = lorawanClient.sendData(txData);
     stat.addResult(isOk);
@@ -125,7 +133,7 @@ void loop() {
 
     // reset to send stat whole data to harvest
     // @see setDataToSend
-    if (stat.getTotalCount() > 99999) {
+    if (stat.getTotalCount() > 60000) {
       Serial.println("Resetting stat.");
       stat.reset();
     }

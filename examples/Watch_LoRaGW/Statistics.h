@@ -3,22 +3,23 @@
 
 class Statistics {
 public:
-  double getOkRate() {
-    const int totalCount = getTotalCount();
+  // @return -1 if totalCount() is 0
+  double getOkRate() const {
+    const unsigned int totalCount = getTotalCount();
     if (totalCount == 0)
       return -1;
     return static_cast<double>(okCount) / totalCount;
   }
-  inline int getTotalCount() {
+  inline unsigned int getTotalCount() const {
     return okCount + errCount;
   }
-  inline int getOkCount() const {
+  inline unsigned int getOkCount() const {
     return okCount;
   }
-  inline int getErrCount() const {
+  inline unsigned int getErrCount() const {
     return errCount;
   }
-  inline int getSequenceCount() {
+  inline unsigned int getSequenceCount() const {
     return sequenceCount;
   }
   void addResult(bool isOk) {
@@ -41,13 +42,13 @@ public:
 
     isLastOk = isOk;  
   }
-  inline double getMaxErrSecs() {
+  inline double getMaxErrSecs() const {
     return static_cast<double>(maxErrMillis) / 1000;
   }
-  inline double getMaxErrMins() {
+  inline double getMaxErrMins() const {
     return static_cast<double>(maxErrMillis) / 1000 / 60;
   }
-  inline bool getLastOk() {
+  inline bool getLastOk() const {
     return isLastOk;
   }
   inline void reset() {
@@ -59,12 +60,12 @@ public:
 private:
   bool isLastOk;
   // If you add fields, review reset() and consider if the new fields should also be reset in it.
-  int okCount = 0;
-  int errCount = 0;
-  int sequenceCount = 0;
-  int startErrMillis;
-  int lastErrMillis;
-  int maxErrMillis = 0;
+  unsigned int okCount = 0;
+  unsigned int errCount = 0;
+  unsigned int sequenceCount = 0;
+  unsigned long startErrMillis;
+  unsigned long lastErrMillis;
+  unsigned long maxErrMillis = 0;
 };
 
 #endif

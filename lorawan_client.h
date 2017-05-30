@@ -4,12 +4,9 @@
 #include "Arduino.h"
 #include <SoftwareSerial.h>
 
-#define INIT_WAIT_TIME 1000
-#define SERIAL_WAIT_TIME 1000
-#define NETWORK_WAIT_TIME 5000
-#define JOIN_RETRY_INTERVAL 5000
-#define JOIN_RETRY_MAX 0 // 0 = unlimited
 #define MAX_PAYLOAD_SIZE 11
+#define DEFAULT_LOCAL_CMD_WAIT_TIME 1000
+#define DEFAULT_NETWORK_CMD_WAIT_TIME 6000
 
 typedef void (* CALLBACK)(char *, int);
 
@@ -31,27 +28,25 @@ public:
   static LoRaWANClient* create(Device device);
 
   /**
-   * Send raw command to gateway
+   * Send raw command to module
    * 
    * @return String response from gateway. Raw string including "tx_ok", "err" and "Ok"
    */
-  virtual String sendCmd(String cmd, bool echo=true, int waitTime=SERIAL_WAIT_TIME);
+  virtual String sendLocalCmd(const String& cmd);
+  virtual String sendNetworkCmd(const String& cmd);
+  virtual String sendCmd(const String& cmd, int waitTime);
   
   /**
-   * Send raw command to gateway
+   * Send raw command to module
    * 
    * @param cmd command to transmit
    * @param waitStr text to search from the response
    * @return true if waitStr is found in the response
    */
-  virtual bool sendCmd(String cmd, String waitStr, bool echo=true, int waitTime=SERIAL_WAIT_TIME);
-  
-  virtual inline bool sendCmd(const char* cmd, const char* waitStr, bool echo=true, int waitTime=SERIAL_WAIT_TIME) {
-    // this function is defined to avoid ambiguous overload when you pass "const char[]" only
-    return sendCmd(String(cmd), String(waitStr), echo, waitTime);
-  }
-
-  
+  virtual bool sendLocalCmd(const String& cmd, const String& waitStr);
+  virtual bool sendNetworkCmd(const String& cmd, const String& waitStr);
+  virtual bool sendCmd(const String& cmd, const String& waitStr, int waitTime);
+    
   /**
    * Connect to gateway
    */
@@ -60,32 +55,67 @@ public:
   /**
    * Send Binary data with data_size to gateway
    */
-  virtual bool sendBinary(byte *data_pointer, int data_size, short port=1, CALLBACK p=NULL, bool echo=true) = 0;
+  virtual bool sendBinary(byte *data_pointer, int data_size, short port=1, CALLBACK p=NULL) = 0;
   
   /**
-   * Send char* data to gateway
+   * Send String or char* data to gateway
    */
-  virtual bool sendData(char *msg, short port=1, CALLBACK p=NULL, bool echo=true) = 0;
+  virtual bool sendData(const String& msg, short port=1, CALLBACK p=NULL) = 0;
 
   /**
    * Send long data to gateway
    */  
-  virtual bool sendData(unsigned long, short port=1, CALLBACK p=NULL, bool echo=true) = 0;
-  
+  virtual bool sendData(unsigned long, short port=1, CALLBACK p=NULL) = 0;
+
+  void enableSerialPrint();
+  void disableSerialPrint();
+
+  void setLocalWaitTime(int waitTime);
+  void setNetworkWaitTime(int waitTime);
+
 protected:
   SoftwareSerial ss;
-  String promptStr;
+  bool serialPrint = true;
+  int localWaitTime = DEFAULT_LOCAL_CMD_WAIT_TIME;
+  int networkWaitTime = DEFAULT_NETWORK_CMD_WAIT_TIME;
   
   /**
    * Instead of calling the constructor directly,
    * call factory method create() or constructors of concrete objects
    */
   LoRaWANClient(SoftwareSerial serial);
-
-  /**
-   * Set the prompt string which is used as a stop string in sendCmd()
-   */
-  void setPromptStr(const String& prompt);
 };
+
+inline String LoRaWANClient::sendLocalCmd(const String& cmd){
+  return sendCmd(cmd, localWaitTime);
+}
+
+inline String LoRaWANClient::sendNetworkCmd(const String& cmd){
+  return sendCmd(cmd, networkWaitTime);
+}
+
+inline bool LoRaWANClient::sendLocalCmd(const String& cmd, const String& waitStr){
+  return sendCmd(cmd, waitStr, localWaitTime);
+}
+
+inline bool LoRaWANClient::sendNetworkCmd(const String& cmd, const String& waitStr){
+  return sendCmd(cmd, waitStr, networkWaitTime);
+}
+
+inline void LoRaWANClient::enableSerialPrint() {
+  serialPrint = true;
+}
+
+inline void LoRaWANClient::disableSerialPrint() {
+  serialPrint = false;
+}
+
+inline void LoRaWANClient::setLocalWaitTime(int waitTime) {
+  localWaitTime = waitTime;
+}
+
+inline void LoRaWANClient::setNetworkWaitTime(int waitTime) {
+  networkWaitTime = waitTime;
+}
 
 #endif

@@ -3,78 +3,112 @@
 
 #include "lorawan_client.h"
 #include "lorawan_client_al050.h"
+#include "lorawan_util.h"
 
-#define ECHO(str) if(echo){Serial.print(str);}
-#define ECHOLN(str) if(echo){Serial.println(str);}
+#define SERIAL_BAUDRATE 9600
+#define SERIAL_TIMEOUT 1000
+
+#define JOIN_RETRY_MAX 0 // 0 = unlimited
+
+#define ECHO(str) if(serialPrint){Serial.print(str);}
+#define ECHOLN(str) if(serialPrint){Serial.println(str);}
 
 const char LoRaWANClientAL050::RESPONSE_PREFIX[] = ">> ";
+const char LoRaWANClientAL050::NEWLINE_STR[] = "\n\r";
 const char LoRaWANClientAL050::PROMPT_STR[] = "\n\r> ";
+const char LoRaWANClientAL050::SEND_CMD_RESPONSE_SEPARATOR[] = "\n";
+
+const constexpr size_t RESPONSE_PREFIX_LENGTH = sizeof(LoRaWANClientAL050::RESPONSE_PREFIX) - 1;
+const constexpr size_t PROMPT_STR_LENGTH = sizeof(LoRaWANClientAL050::PROMPT_STR) - 1;
 
 LoRaWANClientAL050::LoRaWANClientAL050() : LoRaWANClient(SoftwareSerial(LoRa_RX_PIN,LoRa_TX_PIN)) {
-  setPromptStr(PROMPT_STR);
+  ss.begin(SERIAL_BAUDRATE);
+  ss.setTimeout(SERIAL_TIMEOUT);
 }
 
-String LoRaWANClientAL050::sendCmd(String cmd, bool echo, int waitTime){
-  const String response = LoRaWANClient::sendCmd(cmd, echo, waitTime);
+/**
+ * Remove the prompt chars and return the response content itself
+ * Multiple lines are delimited with the single char '\n'
+ * e.g.
+ * "res1\n"
+ * "res2"
+ * from
+ * ">> res1\n\r"
+ * ">> res2\n\r"
+ * "> "
+ */
+String LoRaWANClientAL050::sendCmd(const String& cmd, int waitTime){
+  String response = LoRaWANClient::sendCmd(cmd, waitTime);
 
-  // We currently do not support multi line response like "lorawan set_linkchk" and "lorawan tx".
-  int p = response.indexOf(RESPONSE_PREFIX) + 3;
-  if (p < 0) p = 0;
+  // Serial.println("#" + response + "#");
+  int p = response.indexOf(RESPONSE_PREFIX);
+  p = p < 0 ? 0 : p + RESPONSE_PREFIX_LENGTH;
+
+  // Compute the prompt position
+  // Note that some commands like "lorawan join" returns multiple PROMPT_STR.
+  // Some commands like "mod reset" returns response after PROMPT_STR
+  // We do not try too hard to parse these kind of response.
+  int q = response.length();
+  for (int q_next = response.indexOf(PROMPT_STR, p);
+    q_next >= 0;
+    q = q_next, q_next = response.indexOf(PROMPT_STR, q + 1))
+  {
+    /*
+    // Consider an empty prompt line as the end of response
+    // We may chop it, but keep as is to rescue the delayed response from the previous command
+    if (response.charAt(q_next + PROMPT_STR_LENGTH) == NEWLINE_STR[0]) {
+      q = q_next;
+      break;
+    }
+    */
+  }
+
+  response = response.substring(p, q);
+
+  // Deal with the multi line response like "lorawan join"
+  response.replace(String(NEWLINE_STR) + RESPONSE_PREFIX, SEND_CMD_RESPONSE_SEPARATOR);
+  response.replace(PROMPT_STR, SEND_CMD_RESPONSE_SEPARATOR);
   
-  int q = response.indexOf(PROMPT_STR, p);
-  if (q < 0) q = response.length();
-    
-  return response.substring(p, q);
-}
-
-// You need to override all overloaded methods
-bool LoRaWANClientAL050::sendCmd(String cmd, String waitStr, bool echo, int waitTime) {
-  return LoRaWANClient::sendCmd(cmd, waitStr, echo, waitTime);
-}
-
-bool LoRaWANClientAL050::sendCmd(const char* cmd, const char* waitStr, bool echo, int waitTime) {
-  return LoRaWANClient::sendCmd(cmd, waitStr, echo, waitTime);  
+  // Serial.println("!" + response + "!");
+  return response;
 }
 
 bool LoRaWANClientAL050::connect(bool force_reconnect){
-  int waitTime=INIT_WAIT_TIME;
-  String cmd;
-
   ss.listen();
 
-  sendCmd("\n", "",false);
+  sendLocalCmd("\n");
   while (ss.available() > 0) {
     char ch = ss.read();
-    Serial.print(ch);
+    ECHO(ch);
   }
 
   if(!force_reconnect)
   {
-    Serial.println("Checking if already joined or not ... ");
-    if (!sendCmd("lorawan get_join_status", "unjoined", true, waitTime)) {
-      Serial.println("already joined.");
+    ECHOLN("Checking if already joined or not ... ");
+    if (!sendLocalCmd("lorawan get_join_status", "unjoined")) {
+      ECHOLN("already joined.");
       return true;
     }
-    Serial.println("unjoined.");
+    ECHOLN("unjoined.");
   }
 
   //
   // LoRa module status clear
   //
-  if (!sendCmd("mod factory_reset", "Ok", true, waitTime)) {
-    Serial.println("Request Failed");
+  if (!sendLocalCmd("mod factory_reset", "Ok")) {
+    ECHOLN("Request Failed");
     return false;
   }
-  if (!sendCmd("mod set_echo off", "Ok", true, waitTime)) {
-    Serial.println("Request Failed");
+  if (!sendLocalCmd("mod set_echo off", "Ok")) {
+    ECHOLN("Request Failed");
     return false;
   }
-  if (!sendCmd("mod save", "Ok", true, waitTime)) {
-    Serial.println("Request Failed");
+  if (!sendLocalCmd("mod save", "Ok")) {
+    ECHOLN("Request Failed");
     return false;
   }
-  if (!sendCmd("mod reset", "", true, waitTime)) {
-    Serial.println("Request Failed");
+  if (!sendLocalCmd("mod reset")) {
+    ECHOLN("Request Failed");
     return false;
   }
 
@@ -82,39 +116,53 @@ bool LoRaWANClientAL050::connect(bool force_reconnect){
   // LoRa module various value get
   //
 
-  if (!sendCmd("mod get_hw_model", "", true, waitTime)) {
-    Serial.println("Request Failed");
+  if (!sendLocalCmd("mod get_hw_model")) {
+    ECHOLN("Request Failed");
     return false;
   }
-  if (!sendCmd("mod get_ver", "", true, waitTime)) {
-    Serial.println("Request Failed");
+  if (!sendLocalCmd("mod get_ver")) {
+    ECHOLN("Request Failed");
     return false;
   }
-  if (!sendCmd("lorawan get_deveui", "", true, waitTime)) {
-    Serial.println("Request Failed");
+  if (!sendLocalCmd("lorawan get_deveui")) {
+    ECHOLN("Request Failed");
     return false;
   }
 
   // LoRa module join to Network Server by OTAA
   //
   int retry=0;
-  while (!sendCmd("lorawan join otaa", "accepted", true, JOIN_RETRY_INTERVAL)) {
+  while (!sendNetworkCmd("lorawan join otaa", "accepted")) {
     retry++;
-    Serial.print("'lorawan join otaa' Failed (");
-    Serial.print(retry);
-    Serial.print("/");
-    Serial.print(JOIN_RETRY_MAX);
-    Serial.println(")");
+    ECHO("'lorawan join otaa' Failed (");
+    ECHO(retry);
+    ECHO("/");
+    ECHO(JOIN_RETRY_MAX);
+    ECHOLN(")");
     if(retry == JOIN_RETRY_MAX)
     {
-      Serial.println("Exceeded JOIN_RETRY_MAX attempts.");
+      ECHOLN("Exceeded JOIN_RETRY_MAX attempts.");
       return false;
     }
   }
   return true;
 }
 
-bool LoRaWANClientAL050::sendData(char *data, short port, CALLBACK p, bool echo){
+bool LoRaWANClientAL050::sendData(const String& msg, short port, CALLBACK p){
+  ECHO("sending '");
+  ECHO(msg);
+  ECHO("' to port ");
+  ECHOLN(port);
+  
+  byte* bp = (byte *)msg.c_str();
+  const String payloadHex = bytesToHexString(bp, msg.length());
+  const String cmdLine = String("lorawan tx ") + getTxTypeString() + ' ' + String(port) + ' ' + payloadHex;
+  ECHOLN(cmdLine);
+  return handleTx(cmdLine, p);
+}
+
+/*
+bool LoRaWANClientAL050::sendData(char *msg, short port, CALLBACK p){
   ECHO("sending '");
   ECHO(data);
   ECHO("' to port ");
@@ -137,10 +185,17 @@ bool LoRaWANClientAL050::sendData(char *data, short port, CALLBACK p, bool echo)
   sprintf(cmdLine, "lorawan tx %s %d %s", getTxTypeString(), port, payload);
   ECHOLN(cmdLine);
 
-  return handleTx(cmdLine, p, echo);
-}
+  return handleTx(cmdLine, p);
 
-bool LoRaWANClientAL050::sendData(unsigned long data, short port, CALLBACK p, bool echo){
+  const int data_size = strlen(data);
+  const String payloadHex = bytesToHexString((byte *)data, data_size);
+  const String cmdLine = String("lorawan tx ") + getTxTypeString() + ' ' + String(port) + ' ' + payloadHex;
+  ECHOLN(cmdLine);
+  return handleTx(cmdLine, p);
+}
+  */
+
+bool LoRaWANClientAL050::sendData(unsigned long data, short port, CALLBACK p){
   ECHO("sending '");
   ECHO(data);
   ECHO("' to port ");
@@ -150,10 +205,10 @@ bool LoRaWANClientAL050::sendData(unsigned long data, short port, CALLBACK p, bo
   sprintf(cmdLine, "lorawan tx %s %d %08lx", getTxTypeString(), port, data);  
   ECHOLN(cmdLine);
   
-  return handleTx(cmdLine, p, echo);
+  return handleTx(cmdLine, p);
 }
 
-bool LoRaWANClientAL050::sendBinary(byte *data_pointer, int data_size, short port, CALLBACK p, bool echo){
+bool LoRaWANClientAL050::sendBinary(byte *data_pointer, int data_size, short port, CALLBACK pDownLinkCallback){
   if (data_size > MAX_PAYLOAD_SIZE)
   {
     ECHO("ERROR: size of data (");
@@ -162,29 +217,22 @@ bool LoRaWANClientAL050::sendBinary(byte *data_pointer, int data_size, short por
     return false;
   }
 
-  char cmdLine[MAX_PAYLOAD_SIZE*2+30];
-  sprintf(cmdLine, "lorawan tx %s %d ", getTxTypeString(), port);
-
-  byte *b=data_pointer;
-  char tmp[]="00";
-  for(int i=0; i<data_size; i++,b++)
-  {
-    sprintf(tmp, "%02x", *b );
-    strcat(cmdLine, tmp);
-  }
-  
+  const String payloadHex = bytesToHexString(data_pointer, data_size);
+  const String cmdLine = String("lorawan tx ") + getTxTypeString() + ' ' + String(port) + ' ' + payloadHex;
   ECHOLN(cmdLine);
-  
-  return handleTx(cmdLine, p, echo);
+  return handleTx(cmdLine, pDownLinkCallback);
 }
 
-bool LoRaWANClientAL050::handleTx(char* cmdLine, CALLBACK p, bool echo){
-  const String response = sendCmd(cmdLine, true, NETWORK_WAIT_TIME);
+
+bool LoRaWANClientAL050::handleTx(const String& cmdLine, CALLBACK pDownLinkCallback){
+  const String response = sendNetworkCmd(cmdLine);
+  
   const int posRx = response.indexOf("rx ");
   if (posRx >= 0)
   {
+    // There are downlink data
     ECHOLN(" ... received downlink data.");
-    if (p != NULL) {
+    if (pDownLinkCallback != NULL) {
       // parse "rx portnum data\n\r>> tx_sent"
       const int posPrompt = response.indexOf("\n\r", posRx + 3);
       const String rx = response.substring(posRx + 3, posPrompt);
@@ -196,7 +244,8 @@ bool LoRaWANClientAL050::handleTx(char* cmdLine, CALLBACK p, bool echo){
       // You need to have a variable instance here.
       const String dataString = rx.substring(posDelim + 1, rx.length());
       char* data = const_cast<char*>(dataString.c_str());
-      p(data, portnum);
+      
+      pDownLinkCallback(data, portnum);
     }
     // fall through. rx response also includes tx_ok
   }
@@ -214,56 +263,11 @@ bool LoRaWANClientAL050::handleTx(char* cmdLine, CALLBACK p, bool echo){
 }
 
 DataRate LoRaWANClientAL050::getDataRate(){
-  constexpr bool echo = true;
-  constexpr int waitTime = NETWORK_WAIT_TIME;
-  
-  const String s = sendCmd("lorawan get_dr", echo, waitTime);
+  const String s = sendLocalCmd("lorawan get_dr");
 
   int dr;
   sscanf(s.c_str(), "%d", &dr);
   
   return static_cast<DataRate>(dr);
-}
-
-bool LoRaWANClientAL050::setDataRate(DataRate dr){
-  constexpr bool echo = true;
-  constexpr int waitTime = NETWORK_WAIT_TIME;
-
-//  if (dr == DR7) {
-//    // not supported by AL-050
-//    return false;
-//  }
-  
-  const String cmd = String("lorawan set_dr ") + dr;
-  return sendCmd(cmd, "Ok", echo, waitTime);
-}
-
-String LoRaWANClientAL050::getVersion(bool echo, int waitTime) {
-  return sendCmd("mod get_ver", echo, waitTime);
-}
-
-String LoRaWANClientAL050::getHardwareDeveui(bool echo, int waitTime) {
-  return sendCmd("mod get_hw_deveui", echo, waitTime);  
-}
-
-String LoRaWANClientAL050::getHardwareModel(bool echo, int waitTime) {
-  return sendCmd("mod get_hw_model", echo, waitTime);
-}
-
-String LoRaWANClientAL050::getDeveui(bool echo, int waitTime) {
-  return sendCmd("lorawan get_deveui", echo, waitTime);
-}
-
-void LoRaWANClientAL050::setTxType(TxType type){
-  txType = type;
-}
-
-TxType LoRaWANClientAL050::getTxType(){
-  return txType;
-}
-
-const char* LoRaWANClientAL050::getTxTypeString(){
-  // string used in sendCmd
-  return txType == TX_TYPE_CONFIRMED ? "cnf" : "ucnf";
 }
 
