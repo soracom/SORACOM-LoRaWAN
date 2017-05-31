@@ -7,6 +7,7 @@
 
 #define SERIAL_BAUDRATE 9600
 #define SERIAL_TIMEOUT 1000
+#define DEFAULT_JOIN_WAIT_TIME 10000
 
 #define JOIN_RETRY_MAX 0 // 0 = unlimited
 
@@ -66,10 +67,10 @@ String LoRaWANClientAL050::sendCmd(const String& cmd, int waitTime){
   response = response.substring(p, q);
 
   // Deal with the multi line response like "lorawan join"
-  response.replace(String(NEWLINE_STR) + RESPONSE_PREFIX, SEND_CMD_RESPONSE_SEPARATOR);
+  response.replace(String(NEWLINE_STR) + String(RESPONSE_PREFIX), SEND_CMD_RESPONSE_SEPARATOR);
   response.replace(PROMPT_STR, SEND_CMD_RESPONSE_SEPARATOR);
   
-  // Serial.println("!" + response + "!");
+  // ECHO("!"); ECHO(response); ECHOLN("!");
   return response;
 }
 
@@ -131,6 +132,8 @@ bool LoRaWANClientAL050::connect(bool force_reconnect){
 
   // LoRa module join to Network Server by OTAA
   //
+  const int backupWaitTime = networkWaitTime;
+  networkWaitTime = DEFAULT_JOIN_WAIT_TIME;
   int retry=0;
   while (!sendNetworkCmd("lorawan join otaa", "accepted")) {
     retry++;
@@ -142,9 +145,11 @@ bool LoRaWANClientAL050::connect(bool force_reconnect){
     if(retry == JOIN_RETRY_MAX)
     {
       ECHOLN("Exceeded JOIN_RETRY_MAX attempts.");
+      networkWaitTime = backupWaitTime;
       return false;
     }
   }
+  networkWaitTime = backupWaitTime;
   return true;
 }
 
@@ -156,44 +161,11 @@ bool LoRaWANClientAL050::sendData(const String& msg, short port, CALLBACK p){
   
   byte* bp = (byte *)msg.c_str();
   const String payloadHex = bytesToHexString(bp, msg.length());
-  const String cmdLine = String("lorawan tx ") + getTxTypeString() + ' ' + String(port) + ' ' + payloadHex;
-  ECHOLN(cmdLine);
+  char cmdLine[64];
+  sprintf(cmdLine, "lorawan tx %s %d %s", getTxTypeString(), port, payloadHex.c_str());  
+  // ECHOLN(cmdLine);
   return handleTx(cmdLine, p);
 }
-
-/*
-bool LoRaWANClientAL050::sendData(char *msg, short port, CALLBACK p){
-  ECHO("sending '");
-  ECHO(data);
-  ECHO("' to port ");
-  ECHOLN(port);
-
-  char payload[MAX_PAYLOAD_SIZE*2+1] = "";
-  char tmp[3] = "";
-  for(int i=0, j=0; i< MAX_PAYLOAD_SIZE ; i++, j+=2)
-  {
-    if(data[i] == 0x00)
-    {
-      payload[j] = 0x00;
-      break;
-    }
-    sprintf(tmp,"%0x",data[i]);
-    strcat(payload, tmp);
-  }
-
-  char cmdLine[32];
-  sprintf(cmdLine, "lorawan tx %s %d %s", getTxTypeString(), port, payload);
-  ECHOLN(cmdLine);
-
-  return handleTx(cmdLine, p);
-
-  const int data_size = strlen(data);
-  const String payloadHex = bytesToHexString((byte *)data, data_size);
-  const String cmdLine = String("lorawan tx ") + getTxTypeString() + ' ' + String(port) + ' ' + payloadHex;
-  ECHOLN(cmdLine);
-  return handleTx(cmdLine, p);
-}
-  */
 
 bool LoRaWANClientAL050::sendData(unsigned long data, short port, CALLBACK p){
   ECHO("sending '");
@@ -201,30 +173,28 @@ bool LoRaWANClientAL050::sendData(unsigned long data, short port, CALLBACK p){
   ECHO("' to port ");
   ECHOLN(port);
 
-  char cmdLine[32];
+  char cmdLine[64];
   sprintf(cmdLine, "lorawan tx %s %d %08lx", getTxTypeString(), port, data);  
-  ECHOLN(cmdLine);
+  // ECHOLN(cmdLine);
   
   return handleTx(cmdLine, p);
 }
 
 bool LoRaWANClientAL050::sendBinary(byte *data_pointer, int data_size, short port, CALLBACK pDownLinkCallback){
-  if (data_size > MAX_PAYLOAD_SIZE)
-  {
-    ECHO("ERROR: size of data (");
-    ECHO(data_size);
-    ECHOLN(" bytes) too big. ");
-    return false;
-  }
+  ECHO("sending data (size=");
+  ECHO(data_size);
+  ECHO("bytes) to port ");
+  ECHOLN(port);
 
   const String payloadHex = bytesToHexString(data_pointer, data_size);
-  const String cmdLine = String("lorawan tx ") + getTxTypeString() + ' ' + String(port) + ' ' + payloadHex;
-  ECHOLN(cmdLine);
+  char cmdLine[64];
+  sprintf(cmdLine, "lorawan tx %s %d %s", getTxTypeString(), port, payloadHex.c_str());  
+  // ECHOLN(cmdLine);
   return handleTx(cmdLine, pDownLinkCallback);
 }
 
 
-bool LoRaWANClientAL050::handleTx(const String& cmdLine, CALLBACK pDownLinkCallback){
+bool LoRaWANClientAL050::handleTx(const char* cmdLine, CALLBACK pDownLinkCallback){
   const String response = sendNetworkCmd(cmdLine);
   
   const int posRx = response.indexOf("rx ");

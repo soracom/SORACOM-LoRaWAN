@@ -72,7 +72,7 @@ public:
 protected:
   TxType txType = TX_TYPE_UNCONFIRMED;
   const char* getTxTypeString();
-  bool handleTx(const String& cmdLine, CALLBACK p=NULL);
+  bool handleTx(const char* cmdLine, CALLBACK p=NULL);
 };
 
 inline String LoRaWANClientAL050::getVersion() {

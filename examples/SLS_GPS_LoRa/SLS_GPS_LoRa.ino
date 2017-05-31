@@ -1,12 +1,14 @@
 /*
  * SLS_GPS_LoRa
  * (c) 2017 SORACOM, INC.
+ * https://dev.soracom.io/jp/start/loraspace-register-point/
  */
 
 #include <SoftwareSerial.h>
 #include <TinyGPS.h>
 #include <lorawan_client.h>
 #include <lorawan_client_al050.h>
+#include <lorawan_util.h>
 
 // If you are using other pins, update accordingly
 #define GPS_TX_PIN  8 // Arduino 8pin to GPS module TX
@@ -18,8 +20,8 @@
 #define SEND_INTERVAL 15000
 
 // Sensor may return small different values at the same place
-#define SIGMA_LONG_LATLNG 300
-#define SIGMA_METER_ALT 50
+#define SIGMA_LONG_LATLNG 50
+#define SIGMA_METER_ALT 10
 #define LAT_LONG_MIN  -90000000
 #define LAT_LONG_MAX   90000000
 #define LNG_LONG_MIN -180000000
@@ -59,8 +61,11 @@ void setup() {
 #ifdef USE_LORAWAN
   if (!lorawanClient.connect()) {
     Serial.println(" failed to connect. Halt...");
-    for(;;){};
+    for(;;){}
   }
+  Serial.println("Connected to Gateway");
+  
+  lorawanClient.setTxType(TX_TYPE_CONFIRMED);
 #endif
 }
 
@@ -145,8 +150,11 @@ bool send_location() {
 
 #ifdef USE_LORAWAN
   // note the endian in the server side
-  lorawanClient.sendBinary((byte *)&sls_gps, sizeof(sls_gps));
-#endif
-
+  bool isSucceeded = lorawanClient.sendBinary((byte *)&sls_gps, sizeof(sls_gps));
+  Serial.print("data sent=");
+  Serial.println(isSucceeded);
+  return isSucceeded;
+#else
   return true;
+#endif
 }

@@ -47,7 +47,8 @@ String LoRaWANClient::sendCmd(const String& cmd, int waitTime){
     while (ss.available() > 0) {
       const char ch = ss.read();
       ECHO(ch);
-      str += String(ch);
+      if (!str.concat(ch))
+        ECHOLN("failed to gather response because of out of memory.");
     }
   }
 

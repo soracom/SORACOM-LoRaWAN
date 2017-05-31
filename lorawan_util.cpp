@@ -45,7 +45,8 @@ String bytesToHexString(const byte* data, int data_size) {
   for (int i = 0; i < data_size; ++i) {
     // %02x
     const String s = String(data[i], 16);
-    payload += data[i] >= 10 ? s : String('0') + s;
+    // Serial.println(data[i] >= 16 ? s : String('0') + s);
+    payload += data[i] >= 16 ? s : String('0') + s;
   }
   return payload;
 }
