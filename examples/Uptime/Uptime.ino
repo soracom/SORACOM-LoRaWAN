@@ -1,7 +1,12 @@
+/*
+ * Sample code to send device uptime to LoRaWAN
+ */
+
 #include <lorawan_client.h>
+#include <lorawan_client_al050.h>
 #define INTERVAL 10000 // 10000 msec = 10 sec
 
-LoRaWANClient client;
+LoRaWANClientAL050 client;
 
 void setup() {
   Serial.begin(9600);

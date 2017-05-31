@@ -5,21 +5,63 @@
 ########################################
 # Datatypes (KEYWORD1)
 ########################################
+# lorawan_client.h
+LoRaWANClient	KEYWORD1
+DataRate	KEYWORD1
+TxType	KEYWORD1
+Device	KEYWORD1
 
-LoRaWANClient KEYWORD1
+# lorawan_client_al050.h
+LoRaWANClientAL050	KEYWORD1
+
 ########################################
 # Methods and Functions (KEYWORD2)
 ########################################
-connect KEYWORD2
-sendCmd  KEYWORD2
-sendData  KEYWORD2
+# lorawan_client.h
+create	KEYWORD2
+sendLocalCmd	KEYWORD2
+sendNetworkCmd	KEYWORD2
+sendCmd	KEYWORD2
+connect	KEYWORD2
+sendBinary	KEYWORD2
+sendData	KEYWORD2
+enableSerialPrint	KEYWORD2
+disableSerialPrint	KEYWORD2
+
+# lorawan_client_al050.h
+getVersion	KEYWORD2
+getHardwareDeveui	KEYWORD2
+getHardwareModel	KEYWORD2
+setDataRate	KEYWORD2
+getDeveui	KEYWORD2
+getDataRate	KEYWORD2
+setTxType	KEYWORD2
+getTxType	KEYWORD2
+
+# lorawan_util.h
+createJson	KEYWORD2
+stringToHexString	KEYWORD2
+bytesToHexString	KEYWORD2
 
 ########################################
 # Constants (LITERAL1)
 ########################################
-LoRa_RX_PIN KEYWORD3
-LoRa_TX_PIN KEYWORD3
-INIT_WAIT_TIME  KEYWORD3
-SERIAL_WAIT_TIME  KEYWORD3
-NETWORK_WAIT_TIME KEYWORD3
-JOIN_RETRY_MAX  KEYWORD3
+# lorawan_client.h
+MAX_PAYLOAD_SIZE	LITERAL1
+DR0	LITERAL1
+DR1	LITERAL1
+DR2	LITERAL1
+DR3	LITERAL1
+DR4	LITERAL1
+DR5	LITERAL1
+DR6	LITERAL1
+DR7	LITERAL1
+TX_TYPE_CONFIRMED	LITERAL1
+TX_TYPE_UNCONFIRMED	LITERAL1
+DEVICE_AL050	LITERAL1
+
+# lorawan_client_al050.h
+RESPONSE_PREFIX	LITERAL1
+NEWLINE_STR	LITERAL1
+PROMPT_STR	LITERAL1
+SEND_CMD_RESPONSE_SEPARATOR	LITERAL1
