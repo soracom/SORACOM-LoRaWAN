@@ -7,7 +7,7 @@ LoRaWANClient::LoRaWANClient() {
   ss.setTimeout(SERIAL_WAIT_TIME);
 }
 
-bool LoRaWANClient::connect(bool force_reconnect=true){
+bool LoRaWANClient::connect(bool force_reconnect){
   int waitTime=INIT_WAIT_TIME;
   String cmd;
 
@@ -85,7 +85,7 @@ bool LoRaWANClient::connect(bool force_reconnect=true){
   return true;
 }
 
-bool LoRaWANClient::sendCmd(String cmd, String waitStr, bool echo=true, int waitTime=SERIAL_WAIT_TIME){
+bool LoRaWANClient::sendCmd(String cmd, String waitStr, bool echo, int waitTime){
   unsigned long tim;
   String str;
 
@@ -110,7 +110,7 @@ bool LoRaWANClient::sendCmd(String cmd, String waitStr, bool echo=true, int wait
   return false;
 }
 
-bool LoRaWANClient::sendData(char *data, short port=1, CALLBACK p=NULL, bool echo=true){
+bool LoRaWANClient::sendData(char *data, short port, CALLBACK p, bool echo){
   int i,j;
   char cmdLine[32];
   char payload[MAX_PAYLOAD_SIZE*2+1]="";
@@ -147,7 +147,7 @@ bool LoRaWANClient::sendData(char *data, short port=1, CALLBACK p=NULL, bool ech
   }
 }
 
-bool LoRaWANClient::sendData(unsigned long data, short port=1, CALLBACK p=NULL, bool echo=true){
+bool LoRaWANClient::sendData(unsigned long data, short port, CALLBACK p, bool echo){
   int i,j;
   char cmdLine[32];
   char tmp[3]="";
@@ -172,7 +172,7 @@ bool LoRaWANClient::sendData(unsigned long data, short port=1, CALLBACK p=NULL, 
   }
 }
 
-bool LoRaWANClient::sendBinary(byte *data_pointer, int data_size, short port=1, CALLBACK p=NULL, bool echo=true){
+bool LoRaWANClient::sendBinary(byte *data_pointer, int data_size, short port, CALLBACK p, bool echo){
   char cmdLine[MAX_PAYLOAD_SIZE*2+30], tmp[]="00";
   int i;
   byte *b;
