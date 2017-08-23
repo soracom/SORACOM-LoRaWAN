@@ -22,7 +22,7 @@ bool LoRaWANClient::connect(bool force_reconnect){
   if(!force_reconnect)
   {
     Serial.println("Checking if already joined or not ... ");
-    if (!sendCmd("lorawan get_join_status", "unjoined", true, waitTime)) {
+    if (!sendCmd("lorawan get_join_status", "unjoined", NULL, true, waitTime)) {
       Serial.println("already joined.");
       return true;
     }
@@ -32,19 +32,19 @@ bool LoRaWANClient::connect(bool force_reconnect){
   //
   // LoRa module status clear
   //
-  if (!sendCmd("mod factory_reset", "Ok", true, waitTime)) {
+  if (!sendCmd("mod factory_reset", "Ok", NULL, true, waitTime)) {
     Serial.println("Request Failed");
     return false;
   }
-  if (!sendCmd("mod set_echo off", "Ok", true, waitTime)) {
+  if (!sendCmd("mod set_echo off", "Ok", NULL, true, waitTime)) {
     Serial.println("Request Failed");
     return false;
   }
-  if (!sendCmd("mod save", "Ok", true, waitTime)) {
+  if (!sendCmd("mod save", "Ok", NULL, true, waitTime)) {
     Serial.println("Request Failed");
     return false;
   }
-  if (!sendCmd("mod reset", "", true, waitTime)) {
+  if (!sendCmd("mod reset", "", NULL, true, waitTime)) {
     Serial.println("Request Failed");
     return false;
   }
@@ -53,15 +53,15 @@ bool LoRaWANClient::connect(bool force_reconnect){
   // LoRa module various value get
   //
 
-  if (!sendCmd("mod get_hw_model", "", true, waitTime)) {
+  if (!sendCmd("mod get_hw_model", "", NULL, true, waitTime)) {
     Serial.println("Request Failed");
     return false;
   }
-  if (!sendCmd("mod get_ver", "", true, waitTime)) {
+  if (!sendCmd("mod get_ver", "", NULL, true, waitTime)) {
     Serial.println("Request Failed");
     return false;
   }
-  if (!sendCmd("lorawan get_deveui", "", true, waitTime)) {
+  if (!sendCmd("lorawan get_deveui", "", NULL, true, waitTime)) {
     Serial.println("Request Failed");
     return false;
   }
@@ -69,7 +69,7 @@ bool LoRaWANClient::connect(bool force_reconnect){
   // LoRa module join to Network Server by OTAA
   //
   int retry=0;
-  while (!sendCmd("lorawan join otaa", "accepted", true, JOIN_RETRY_INTERVAL)) {
+  while (!sendCmd("lorawan join otaa", "accepted", NULL, true, JOIN_RETRY_INTERVAL)) {
     retry++;
     Serial.print("'lorawan join otaa' Failed (");
     Serial.print(retry);
@@ -85,7 +85,7 @@ bool LoRaWANClient::connect(bool force_reconnect){
   return true;
 }
 
-bool LoRaWANClient::sendCmd(String cmd, String waitStr, bool echo, int waitTime){
+bool LoRaWANClient::sendCmd(String cmd, String waitStr, CALLBACK p, bool echo, int waitTime){
   unsigned long tim;
   String str;
 
@@ -101,13 +101,40 @@ bool LoRaWANClient::sendCmd(String cmd, String waitStr, bool echo, int waitTime)
       char ch = ss.read();
       ECHO(ch);
       str += String(ch);
-      if (str.indexOf("\n> ") >= 0) break;
+      checkRx(&str, p);
+      if (commandCompleted(cmd, str)) {
+        break;
+      }
     }
   }
   if (waitStr == NULL) return true;
   if (str.indexOf(waitStr) >= 0) return true;
 
   return false;
+}
+
+void LoRaWANClient::checkRx(String* rsp, CALLBACK p) {
+  if (!rsp || !p) {
+    return;
+  }
+
+  int rxIdx = rsp->indexOf("> rx");
+  if (rxIdx >= 0) {
+    String str = rsp->substring(rxIdx + 5 /* length of "> rx " */);
+    int crIdx = str.indexOf("\n");
+    if (crIdx >= 0) {
+      p(str.substring(str.indexOf(" ") + 1, crIdx));
+      rsp->remove(0, rxIdx);
+      rsp->remove(0, crIdx);
+    }
+  }
+}
+
+bool LoRaWANClient::commandCompleted(String cmd, String rsp) {
+  if (cmd.indexOf("lorawan tx") < 0) {
+    return rsp.indexOf("\n> ") >= 0;
+  }
+  return (rsp.indexOf("> tx_ok") >= 0 || rsp.indexOf("> err") >= 0);
 }
 
 bool LoRaWANClient::sendData(char *data, short port, CALLBACK p, bool echo){
@@ -135,7 +162,7 @@ bool LoRaWANClient::sendData(char *data, short port, CALLBACK p, bool echo){
   sprintf(cmdLine, "lorawan tx ucnf %d %s", port, payload);
   ECHOLN(cmdLine);
 
-  if(sendCmd(cmdLine, "tx_ok", true, NETWORK_WAIT_TIME))
+  if(sendCmd(cmdLine, "tx_ok", p, echo, NETWORK_WAIT_TIME))
   {
     ECHOLN(" ... sent.");
     return true;
@@ -160,7 +187,7 @@ bool LoRaWANClient::sendData(unsigned long data, short port, CALLBACK p, bool ec
   sprintf(cmdLine, "lorawan tx ucnf %d %08lx", port, data);
 //  ECHOLN(cmdLine);
 
-  if(sendCmd(cmdLine, "tx_ok", true, NETWORK_WAIT_TIME))
+  if(sendCmd(cmdLine, "tx_ok", p, echo, NETWORK_WAIT_TIME))
   {
     ECHOLN(" ... sent.");
     return true;
@@ -192,7 +219,7 @@ bool LoRaWANClient::sendBinary(byte *data_pointer, int data_size, short port, CA
     strcat(cmdLine, tmp);
   }
   ECHOLN(cmdLine);
-  if(sendCmd(cmdLine, "tx_ok", true, NETWORK_WAIT_TIME))
+  if(sendCmd(cmdLine, "tx_ok", p, echo, NETWORK_WAIT_TIME))
   {
     ECHOLN(" ... sent.");
     return true;
