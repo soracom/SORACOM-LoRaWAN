@@ -13,7 +13,7 @@ bool LoRaWANClient::connect(bool force_reconnect){
 
   ss.listen();
 
-  sendCmd("\n", "",false);
+  sendCmd("\n", "", NULL, false);
   while (ss.available() > 0) {
     char ch = ss.read();
     Serial.print(ch);
